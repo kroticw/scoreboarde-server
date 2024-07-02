@@ -45,7 +45,7 @@ func executeServeCommand(_ *cobra.Command, _ []string) {
 		logger,
 	)
 
-	serverAddress, err := net.ResolveUDPAddr("udp4", "255.255.255.255:8889")
+	serverAddress, err := net.ResolveUDPAddr("udp4", "192.168.82.255:8889")
 	if err != nil {
 		logger.WithFields(logrus.Fields{
 			"err": err,

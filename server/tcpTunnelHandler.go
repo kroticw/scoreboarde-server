@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/sirupsen/logrus"
+	"strconv"
+	"time"
 )
 
 func (s *Server) HandleTunnelClient(
@@ -48,11 +50,20 @@ func (c *Client) SendToClient(_ context.Context, mes *Message) error {
 	if err != nil {
 		return err
 	}
-	_, err = c.Conn.Write(b)
+
+	bs := []byte(strconv.Itoa(len(b)))
+	//err = binary.Write(bs, binary.LittleEndian, uint32(len(b)))
+	//if err != nil {
+	//	fmt.Println("binary.Write failed:", err)
+	//}
+	_, err = c.Conn.Write(bs)
 	if err != nil {
 		return err
 	}
 
+	c.log.Infoln(bs, "bytes sent; ", uint32(len(b)))
+
+	time.Sleep(100 * time.Millisecond)
 	err = json.NewEncoder(c.Conn).Encode(mes)
 	if err != nil {
 		c.log.WithFields(logrus.Fields{
