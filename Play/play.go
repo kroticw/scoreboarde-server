@@ -77,7 +77,7 @@ func (p *Play) Queue(ctx context.Context) {
 			err := p.server.Mailing(ctx, &mes)
 			if err != nil {
 				logrus.WithError(err).Errorln("error queuing message")
-				return
+
 			}
 			p.history.Push(mes)
 		} else {
@@ -85,7 +85,7 @@ func (p *Play) Queue(ctx context.Context) {
 			err := p.server.Mailing(ctx, &message)
 			if err != nil {
 				logrus.WithError(err).Errorln("error queuing message from chan")
-				return
+
 			}
 		}
 		time.Sleep(time.Second * 1)

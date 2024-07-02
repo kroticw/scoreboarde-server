@@ -41,10 +41,10 @@ func (s *Server) HandleTunnelClient(
 }
 
 func (c *Client) SendToClient(_ context.Context, mes *Message) error {
-	c.log.WithFields(logrus.Fields{
-		"con": c.ClientIp + ":" + c.ClientPort,
-		"mes": mes,
-	}).Println("Send to client")
+	//c.log.WithFields(logrus.Fields{
+	//	"con": c.ClientIp + ":" + c.ClientPort,
+	//	"mes": mes,
+	//}).Println("Send to client")
 
 	b, err := json.Marshal(mes)
 	if err != nil {
@@ -61,7 +61,7 @@ func (c *Client) SendToClient(_ context.Context, mes *Message) error {
 		return err
 	}
 
-	c.log.Infoln(bs, "bytes sent; ", uint32(len(b)))
+	//c.log.Infoln(bs, "bytes sent; ", uint32(len(b)))
 
 	time.Sleep(100 * time.Millisecond)
 	err = json.NewEncoder(c.Conn).Encode(mes)
