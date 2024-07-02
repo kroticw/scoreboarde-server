@@ -49,6 +49,6 @@ func (s *Server) UdpConnectionListener(
 			"error": err,
 		}).Errorln("InitClient error")
 	}
-	go s.HandleTunnelClient(ctx, c, history, clients)
+	go s.HandleTunnelClient(ctx, c, history)
 	return nil
 }

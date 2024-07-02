@@ -1,4 +1,4 @@
-package Play
+package server
 
 type Command struct {
 	Name  string `json:"name"`

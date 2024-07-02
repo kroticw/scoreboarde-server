@@ -11,10 +11,11 @@ import (
 type Play struct {
 	TimeStart      int64
 	Time           int64
-	CommandOne     Command
-	CommandTwo     Command
+	CommandOne     server.Command
+	CommandTwo     server.Command
 	PeriodDuration int64
 	history        *server.AtomicMessageHistory
+	server         *server.Server
 	Log            *logrus.Logger
 }
 
@@ -23,13 +24,14 @@ func InitPlay(
 	commandTwoName string,
 	periodDuration int64,
 	history *server.AtomicMessageHistory,
+	s *server.Server,
 	log *logrus.Logger,
 ) *Play {
-	commandOne := Command{
+	commandOne := server.Command{
 		Name:  commandOneName,
 		Score: 0,
 	}
-	commandTwo := Command{
+	commandTwo := server.Command{
 		Name:  commandTwoName,
 		Score: 0,
 	}
@@ -40,113 +42,127 @@ func InitPlay(
 		CommandTwo:     commandTwo,
 		PeriodDuration: periodDuration,
 		history:        history,
+		server:         s,
 		Log:            log,
 	}
 }
 
 var timeDur = 20000
 
-func (p *Play) Playing(ctx context.Context) {
+func (p *Play) Playing(ctx context.Context, stop context.CancelFunc) {
 	for {
-		fmt.Printf(
-			"Выберите ситуацию:\n"+
-				"1. Команда %s забивает гол\n"+
-				"2. Команда %s забивает гол\n"+
-				"3. Time!",
-			p.CommandOne.Name,
-			p.CommandTwo.Name,
-		)
-		var choise int
-		_, err := fmt.Scanf("%d\n", &choise)
-		if err != nil {
-			p.Log.WithFields(logrus.Fields{
-				"error": err,
-			}).Errorln("Ошибка ввода игровой ситуации")
-			continue
-		}
-		var lastEvent server.Message
-		if p.history.Len() == 0 {
-			lastEvent = server.Message{
-				Time: 0,
-				CommandOne: Command{
-					Name:  p.CommandOne.Name,
-					Score: p.CommandOne.Score,
-				},
-				CommandTwo: Command{
-					Name:  p.CommandTwo.Name,
-					Score: p.CommandTwo.Score,
-				},
-				Period: Period{
-					TimeStart:    time.Now().UnixMilli(),
-					Count:        1,
-					TimeInPeriod: 0,
-				},
+		select {
+		case <-ctx.Done():
+		default:
+			fmt.Printf(
+				"Выберите ситуацию:\n"+
+					"1. Команда %s забивает гол\n"+
+					"2. Команда %s забивает гол\n"+
+					"3. Time!\n",
+				p.CommandOne.Name,
+				p.CommandTwo.Name,
+			)
+			var choise int
+			_, err := fmt.Scanf("%d\n", &choise)
+			if err != nil {
+				p.Log.WithFields(logrus.Fields{
+					"error": err,
+				}).Errorln("Ошибка ввода игровой ситуации")
+				continue
 			}
-		} else {
-			le := p.history.GetLast()
-			lastEvent = *le
-		}
-		var event server.Message
-		switch choise {
-		case 1:
-			event = server.Message{
-				Time: lastEvent.Time + 1000,
-				CommandOne: Command{
-					Name:  p.CommandOne.Name,
-					Score: lastEvent.CommandOne.Score + 1,
-				},
-				CommandTwo: Command{
-					Name:  p.CommandTwo.Name,
-					Score: lastEvent.CommandTwo.Score,
-				},
-				Period: Period{
-					Count:        lastEvent.Period.Count,
-					TimeInPeriod: time.Now().UnixMilli() - lastEvent.Period.TimeStart,
-				},
+			var lastEvent server.Message
+			if p.history.Len() == 0 {
+				lastEvent = server.Message{
+					Time: 0,
+					CommandOne: server.Command{
+						Name:  p.CommandOne.Name,
+						Score: p.CommandOne.Score,
+					},
+					CommandTwo: server.Command{
+						Name:  p.CommandTwo.Name,
+						Score: p.CommandTwo.Score,
+					},
+					Period: server.Period{
+						TimeStart:    time.Now().Unix(),
+						Count:        1,
+						TimeInPeriod: 0,
+					},
+				}
+			} else {
+				le := p.history.GetLast()
+				lastEvent = *le
 			}
-			break
-		case 2:
-			event = server.Message{
-				Time: lastEvent.Time + 1000,
-				CommandOne: Command{
-					Name:  p.CommandOne.Name,
-					Score: lastEvent.CommandOne.Score,
-				},
-				CommandTwo: Command{
-					Name:  p.CommandTwo.Name,
-					Score: lastEvent.CommandTwo.Score + 1,
-				},
-				Period: Period{
-					Count:        lastEvent.Period.Count,
-					TimeInPeriod: time.Now().UnixMilli() - lastEvent.Period.TimeStart,
-				},
+			var event server.Message
+			switch choise {
+			case 1:
+				event = server.Message{
+					Time: lastEvent.Time + (time.Now().Unix() - lastEvent.Time),
+					CommandOne: server.Command{
+						Name:  p.CommandOne.Name,
+						Score: lastEvent.CommandOne.Score + 1,
+					},
+					CommandTwo: server.Command{
+						Name:  p.CommandTwo.Name,
+						Score: lastEvent.CommandTwo.Score,
+					},
+					Period: server.Period{
+						Count:        lastEvent.Period.Count,
+						TimeInPeriod: time.Now().Unix() - lastEvent.Period.TimeStart,
+					},
+				}
+				break
+			case 2:
+				event = server.Message{
+					Time: lastEvent.Time + (time.Now().Unix() - lastEvent.Time),
+					CommandOne: server.Command{
+						Name:  p.CommandOne.Name,
+						Score: lastEvent.CommandOne.Score,
+					},
+					CommandTwo: server.Command{
+						Name:  p.CommandTwo.Name,
+						Score: lastEvent.CommandTwo.Score + 1,
+					},
+					Period: server.Period{
+						Count:        lastEvent.Period.Count,
+						TimeInPeriod: time.Now().Unix() - lastEvent.Period.TimeStart,
+					},
+				}
+				break
+			case 3:
+				time.Sleep(10000 * time.Millisecond)
+				event = server.Message{
+					Time: lastEvent.Time,
+					CommandOne: server.Command{
+						Name:  p.CommandOne.Name,
+						Score: lastEvent.CommandOne.Score,
+					},
+					CommandTwo: server.Command{
+						Name:  p.CommandTwo.Name,
+						Score: lastEvent.CommandTwo.Score + 1,
+					},
+					Period: server.Period{
+						Count:        lastEvent.Period.Count,
+						TimeInPeriod: lastEvent.Period.TimeInPeriod,
+					},
+				}
+				break
+			default:
+				<-ctx.Done()
 			}
-			break
-		case 3:
-			time.Sleep(20000 * time.Millisecond)
-			event = server.Message{
-				Time: lastEvent.Time + 1000,
-				CommandOne: Command{
-					Name:  p.CommandOne.Name,
-					Score: lastEvent.CommandOne.Score,
-				},
-				CommandTwo: Command{
-					Name:  p.CommandTwo.Name,
-					Score: lastEvent.CommandTwo.Score + 1,
-				},
-				Period: Period{
-					Count:        lastEvent.Period.Count,
-					TimeInPeriod: lastEvent.Period.TimeInPeriod,
-				},
+			if event.Period.TimeInPeriod >= p.PeriodDuration {
+				event.Period.Count++
+				event.Period.TimeStart = time.Now().Unix()
+				event.Period.TimeInPeriod = 0
 			}
-			break
+			p.history.Push(event)
+			err = p.server.Mailing(ctx, &event)
+			if err != nil {
+				p.Log.WithFields(logrus.Fields{
+					"error": err,
+				}).Errorln("error mailing")
+				return
+			}
 		}
-		if event.Period.TimeInPeriod >= p.PeriodDuration {
-			event.Period.Count++
-			event.Period.TimeStart = time.Now().UnixMilli()
-			event.Period.TimeInPeriod = 0
-		}
-		p.history.Push(event)
-		time.Sleep(1000 * time.Millisecond)
+
 	}
 }

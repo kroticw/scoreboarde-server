@@ -3,11 +3,16 @@ package server
 import "github.com/sirupsen/logrus"
 
 type Server struct {
-	Log *logrus.Logger
+	Clients *AtomicClientsMap
+	Log     *logrus.Logger
 }
 
-func InitServer(server *Server) *Server {
+func InitServer(
+	clients *AtomicClientsMap,
+	log *logrus.Logger,
+) *Server {
 	return &Server{
-		Log: server.Log,
+		Clients: clients,
+		Log:     log,
 	}
 }

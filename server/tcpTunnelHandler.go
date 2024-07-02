@@ -4,25 +4,23 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/sirupsen/logrus"
-	"scoreboarde-server/Play"
 )
 
 func (s *Server) HandleTunnelClient(
 	ctx context.Context,
 	c *Client,
 	history *AtomicMessageHistory,
-	clients *AtomicClientsMap,
 ) {
 	s.Log.WithFields(logrus.Fields{
 		"con": c.ClientIp + ":" + c.ClientPort,
-	}).Println("Connecting to client")
+	}).Println("Handle to client")
 
-	_, exist := clients.GetClient(c.ClientIp)
+	_, exist := s.Clients.GetClient(c.ClientIp)
 	s.Log.Println("exist: ", exist)
 	if !exist {
-		clients.AddClient(c)
+		s.Clients.AddClient(c)
 		for i := 0; i < history.Len(); i++ {
-			err := s.SendToClient(ctx, c, history.Get(i))
+			err := c.SendToClient(ctx, history.Get(i))
 			if err != nil {
 				s.Log.WithFields(logrus.Fields{
 					"con": c.ClientIp + ":" + c.ClientPort,
@@ -34,46 +32,30 @@ func (s *Server) HandleTunnelClient(
 			"ip": c.ClientIp,
 		}).Println("Create new client")
 	}
-	defer c.Close(clients)
+	defer c.Close(s.Clients)
 	for {
-		com1 := &Play.Command{
-			Name:  "one",
-			Score: 10,
-		}
-		com2 := &Play.Command{
-			Name:  "two",
-			Score: 5,
-		}
-		per := &Play.Period{
-			Count:        1,
-			TimeInPeriod: 0,
-		}
-		mes := &Message{
-			Time:       0,
-			CommandOne: *com1,
-			CommandTwo: *com2,
-			Period:     *per,
-		}
-		err := s.SendToClient(ctx, c, mes)
-		if err != nil {
-			s.Log.WithFields(logrus.Fields{
-				"ip":    c.ClientIp,
-				"error": err,
-			}).Errorln("Send message to client")
-			return
-		}
+
 	}
 }
 
-func (s *Server) SendToClient(_ context.Context, c *Client, mes *Message) error {
-	s.Log.WithFields(logrus.Fields{
+func (c *Client) SendToClient(_ context.Context, mes *Message) error {
+	c.log.WithFields(logrus.Fields{
 		"con": c.ClientIp + ":" + c.ClientPort,
 		"mes": mes,
 	}).Println("Send to client")
 
-	err := json.NewEncoder(c.Conn).Encode(mes)
+	b, err := json.Marshal(mes)
 	if err != nil {
-		s.Log.WithFields(logrus.Fields{
+		return err
+	}
+	_, err = c.Conn.Write(b)
+	if err != nil {
+		return err
+	}
+
+	err = json.NewEncoder(c.Conn).Encode(mes)
+	if err != nil {
+		c.log.WithFields(logrus.Fields{
 			"con":   c.ClientIp + ":" + c.ClientPort,
 			"mes":   mes,
 			"error": err,
@@ -81,5 +63,16 @@ func (s *Server) SendToClient(_ context.Context, c *Client, mes *Message) error 
 		return err
 	}
 
+	return nil
+}
+
+func (s *Server) Mailing(_ context.Context, mes *Message) error {
+	mapForSending := s.Clients.clientsMap
+	for _, client := range mapForSending {
+		err := client.SendToClient(context.Background(), mes)
+		if err != nil {
+			return err
+		}
+	}
 	return nil
 }

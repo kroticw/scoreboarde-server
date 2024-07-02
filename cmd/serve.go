@@ -28,9 +28,12 @@ func executeServeCommand(_ *cobra.Command, _ []string) {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer stop()
 
-	s := server.InitServer(&server.Server{
-		Log: logger,
-	})
+	clients := server.NewAtomicClientsMap()
+
+	s := server.InitServer(
+		clients,
+		logger,
+	)
 
 	historyPlay := server.InitAtomicMessageHistory()
 	p := Play.InitPlay(
@@ -38,11 +41,9 @@ func executeServeCommand(_ *cobra.Command, _ []string) {
 		cfg.CommandTwo,
 		cfg.PeriodDuration,
 		historyPlay,
+		s,
 		logger,
 	)
-	go p.Playing(ctx)
-
-	clients := server.NewAtomicClientsMap()
 
 	serverAddress, err := net.ResolveUDPAddr("udp4", "255.255.255.255:8889")
 	if err != nil {
@@ -59,19 +60,23 @@ func executeServeCommand(_ *cobra.Command, _ []string) {
 		return
 	}
 	defer connection.Close()
-	for {
-		select {
-		case <-ctx.Done():
-			stop()
-			return
-		default:
-			err := s.UdpConnectionListener(ctx, connection, historyPlay, clients)
-			if err != nil {
-				logger.WithFields(logrus.Fields{
-					"error": err,
-				}).Errorln("UdpConnectionListener error")
+	go func() {
+		for {
+			select {
+			case <-ctx.Done():
+				stop()
 				return
+			default:
+				err := s.UdpConnectionListener(ctx, connection, historyPlay, clients)
+				if err != nil {
+					logger.WithFields(logrus.Fields{
+						"error": err,
+					}).Errorln("UdpConnectionListener error")
+					return
+				}
 			}
 		}
-	}
+	}()
+
+	p.Playing(ctx, stop)
 }

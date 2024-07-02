@@ -94,11 +94,11 @@ func initLogger() {
 		},
 	})
 	//logger.Out = os.Stdout
-	file, err := os.OpenFile("log.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
-	if err == nil {
-		logger.Out = file
-	} else {
-		logger.Infoln("Failed to log to file, using default stderr")
-	}
+	//file, err := os.OpenFile("log.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	//if err == nil {
+	//	logger.Out = file
+	//} else {
+	//	logger.Infoln("Failed to log to file, using default stderr")
+	//}
 
 }

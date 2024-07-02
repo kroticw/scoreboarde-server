@@ -1,15 +1,14 @@
 package server
 
 import (
-	"scoreboarde-server/Play"
 	"sync"
 )
 
 type Message struct {
-	Time       int64        `json:"time"`
-	CommandOne Play.Command `json:"command_one"`
-	CommandTwo Play.Command `json:"command_two"`
-	Period     Play.Period  `json:"period"`
+	Time       int64   `json:"time"`
+	CommandOne Command `json:"command_one"`
+	CommandTwo Command `json:"command_two"`
+	Period     Period  `json:"period"`
 }
 
 type AtomicMessageHistory struct {

@@ -34,7 +34,10 @@ func (a *AtomicClientsMap) RemoveClient(clientIp string) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	delete(a.clientsMap, clientIp)
+}
 
+func (a *AtomicClientsMap) Length() int {
+	return len(a.clientsMap)
 }
 
 func (a *AtomicClientsMap) GetClient(clientIp string) (*Client, bool) {
@@ -61,7 +64,7 @@ func InitClient(client *Client) (*Client, error) {
 		}).Errorln("Error connecting to client")
 		return &Client{}, err
 	}
-
+	logrus.Infoln("Connected to client successfully")
 	return &Client{
 		ClientIp:   client.ClientIp,
 		ClientPort: client.ClientPort,
